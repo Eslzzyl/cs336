@@ -1,8 +1,9 @@
-import regex as re
 import os
 from collections import Counter
-from typing import BinaryIO
 from multiprocessing import Pool
+from typing import BinaryIO
+
+import regex as re
 
 # 编译正则表达式以提高效率
 # GPT-2 预分词正则表达式

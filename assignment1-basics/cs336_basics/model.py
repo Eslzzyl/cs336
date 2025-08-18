@@ -1,7 +1,8 @@
+import math
+
+import einx
 import torch
 import torch.nn as nn
-import einx
-import math
 
 
 class Linear(nn.Module):

@@ -9,4 +9,3 @@ def cross_entropy(logits: torch.Tensor, targets: torch.Tensor):
     true_class_log_probs = log_probs[torch.arange(batch_size), targets]
     nll_per_sample = -true_class_log_probs
     return nll_per_sample.mean()
-
