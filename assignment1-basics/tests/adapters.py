@@ -1,28 +1,29 @@
 from __future__ import annotations
 
 import os
-from typing import IO, Any, BinaryIO
 from collections.abc import Iterable
-from jaxtyping import Float, Int
+from typing import IO, Any, BinaryIO
 
 import numpy.typing as npt
 import torch
+from jaxtyping import Float, Int
 from torch import Tensor
 
 from cs336_basics.bpe import train_bpe
+from cs336_basics.loss import cross_entropy
 from cs336_basics.model import (
-    Linear,
     Embedding,
-    RMSNorm,
     FeedForward,
-    RotaryPositionalEmbedding,
-    softmax,
-    scaled_dot_product_attention,
+    Linear,
     MultiHeadSelfAttention,
+    RMSNorm,
+    RotaryPositionalEmbedding,
     TransformerBlock,
     TransformerLM,
+    scaled_dot_product_attention,
+    silu,
+    softmax,
 )
-from cs336_basics.loss import cross_entropy
 
 
 def run_linear(
@@ -164,10 +165,10 @@ def run_multihead_self_attention(
     """
     attention = MultiHeadSelfAttention(d_model=d_model, num_heads=num_heads)
     state_dict_to_load = {
-        "w_q.weight": q_proj_weight,
-        "w_k.weight": k_proj_weight,
-        "w_v.weight": v_proj_weight,
-        "w_o.weight": o_proj_weight,
+        "q_proj.weight": q_proj_weight,
+        "k_proj.weight": k_proj_weight,
+        "v_proj.weight": v_proj_weight,
+        "output_proj.weight": o_proj_weight,
     }
     attention.load_state_dict(state_dict_to_load)
     return attention(in_features)
@@ -453,7 +454,7 @@ def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
         Float[Tensor,"..."]: of with the same shape as `in_features` with the output of applying
         SiLU to each element.
     """
-    raise NotImplementedError
+    return silu(in_features)
 
 
 def run_get_batch(
