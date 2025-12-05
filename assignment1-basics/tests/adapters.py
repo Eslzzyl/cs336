@@ -26,6 +26,7 @@ from cs336_basics.model import (
     softmax,
 )
 from cs336_basics.lr_scheduler import lr_cosine_schedule
+from cs336_basics.gradient import gradient_clipping
 
 
 def run_linear(
@@ -538,7 +539,7 @@ def run_gradient_clipping(
 
     The gradients of the parameters (parameter.grad) should be modified in-place.
     """
-    raise NotImplementedError
+    gradient_clipping(parameters, max_l2_norm)
 
 
 def get_adamw_cls() -> type[torch.optim.Optimizer]:
