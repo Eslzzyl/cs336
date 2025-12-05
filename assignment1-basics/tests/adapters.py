@@ -11,6 +11,7 @@ from torch import Tensor
 
 from cs336_basics.bpe import train_bpe
 from cs336_basics.loss import cross_entropy
+from cs336_basics.optimizer import AdamW
 from cs336_basics.model import (
     Embedding,
     FeedForward,
@@ -106,7 +107,11 @@ def run_swiglu(
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
     swiglu = FeedForward(d_model=d_model, d_ff=d_ff)
-    state_dict_to_load = {"w1.weight": w1_weight, "w2.weight": w2_weight, "w3.weight": w3_weight}
+    state_dict_to_load = {
+        "w1.weight": w1_weight,
+        "w2.weight": w2_weight,
+        "w3.weight": w3_weight,
+    }
     swiglu.load_state_dict(state_dict_to_load)
     return swiglu(in_features)
 
@@ -212,7 +217,10 @@ def run_multihead_self_attention_with_rope(
         implementation with the given QKV projection weights and input features.
     """
     attention = MultiHeadSelfAttention(
-        d_model=d_model, num_heads=num_heads, rope_max_seq_len=max_seq_len, rope_theta=theta
+        d_model=d_model,
+        num_heads=num_heads,
+        rope_max_seq_len=max_seq_len,
+        rope_theta=theta,
     )
     state_dict_to_load = {
         "q_proj.weight": q_proj_weight,
@@ -318,7 +326,11 @@ def run_transformer_block(
         running the Transformer block on the input features while using RoPE.
     """
     transformer_block = TransformerBlock(
-        d_model=d_model, num_heads=num_heads, d_ff=d_ff, rope_max_seq_len=max_seq_len, rope_theta=theta
+        d_model=d_model,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        rope_max_seq_len=max_seq_len,
+        rope_theta=theta,
     )
     transformer_block.load_state_dict(weights)
     return transformer_block(in_features)
@@ -514,7 +526,9 @@ def run_cross_entropy(
     return cross_entropy(inputs, targets)
 
 
-def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
+def run_gradient_clipping(
+    parameters: Iterable[torch.nn.Parameter], max_l2_norm: float
+) -> None:
     """Given a set of parameters, clip their combined gradients to have l2 norm at most max_l2_norm.
 
     Args:
@@ -530,7 +544,7 @@ def get_adamw_cls() -> type[torch.optim.Optimizer]:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    return AdamW
 
 
 def run_get_lr_cosine_schedule(
