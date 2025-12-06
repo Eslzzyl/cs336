@@ -27,6 +27,7 @@ from cs336_basics.model import (
 )
 from cs336_basics.lr_scheduler import lr_cosine_schedule
 from cs336_basics.gradient import gradient_clipping
+from cs336_basics.data import get_batch
 
 
 def run_linear(
@@ -491,7 +492,7 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    raise NotImplementedError
+    return get_batch(dataset, batch_size, context_length, device)
 
 
 def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, " ..."]:
