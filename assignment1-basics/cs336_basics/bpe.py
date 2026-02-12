@@ -110,7 +110,10 @@ def pre_tokenize(
     # 一次性读取文件并确定边界
     with open(input_path, mode="rb") as f:
         # 根据CPU核心数确定分块数量，但设置上限避免过多小任务的开销
-        num_chunks = min(os.cpu_count() * 2, 16)
+        cpu_count = os.cpu_count()
+        if not cpu_count:
+            raise ValueError("indeterminable CPU count")
+        num_chunks = min(cpu_count * 2, 16)
         boundaries = find_chunk_boundaries(f, num_chunks, "<|endoftext|>".encode("utf-8"))  # noqa: UP012
 
         args = []

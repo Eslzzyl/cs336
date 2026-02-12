@@ -1,6 +1,7 @@
 import torch
-from cs336_basics.model import TransformerLM
 from einx import rearrange
+
+from cs336_basics.model import TransformerLM
 
 
 def softmax_with_temperature(x: torch.Tensor, dim: int, temperature: float = 0.0):
@@ -30,9 +31,7 @@ def decode(
     generated_tokens_count = 0
     prompt = rearrange("... -> 1 ...")  # 增加一个 batch 维度兼容 forward
     while generated_tokens_count < max_tokens:
-        logits = model(prompt)[0][
-            -1
-        ]  # 取第一个 batch，然后取序列的最后一个位置，即最新的 token
+        logits = model(prompt)[0][-1]  # 取第一个 batch，然后取序列的最后一个位置，即最新的 token
         # 带温度采样的 softmax
         # 如果温度为 0，则直接选择 logits 中最大的值
         if temperature == 0.0:

@@ -1,6 +1,7 @@
-import torch
 import os
-from typing import BinaryIO, IO
+from typing import IO, BinaryIO
+
+import torch
 
 
 def save_checkpoint(

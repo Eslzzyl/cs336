@@ -1,5 +1,5 @@
-import numpy.typing as npt
 import numpy as np
+import numpy.typing as npt
 import torch
 
 
@@ -12,9 +12,7 @@ def get_batch(
         max_start_index = len(dataset) - context_length
         index = np.random.randint(0, max_start_index)
         input_seq = torch.Tensor(dataset[index : index + context_length], device=device)
-        target_seq = torch.Tensor(
-            dataset[index + 1 : index + context_length + 1], device=device
-        )
+        target_seq = torch.Tensor(dataset[index + 1 : index + context_length + 1], device=device)
         input_batch_list.append(input_seq)
         target_batch_list.append(target_seq)
     input_batch = torch.vstack(input_batch_list)

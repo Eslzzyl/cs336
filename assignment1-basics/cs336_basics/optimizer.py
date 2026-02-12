@@ -1,7 +1,7 @@
-from collections.abc import Callable
-from typing import Optional
-import torch
 import math
+from collections.abc import Callable
+
+import torch
 
 
 class SGD(torch.optim.Optimizer):
@@ -15,7 +15,7 @@ class SGD(torch.optim.Optimizer):
         defaults = {"lr": lr}
         super().__init__(params, defaults)
 
-    def step(self, closure: Optional[Callable] = None):
+    def step(self, closure: Callable | None = None):
         loss = None if closure is None else closure()
         for group in self.param_groups:
             lr = group["lr"]  # Get the learning rate.
@@ -23,9 +23,7 @@ class SGD(torch.optim.Optimizer):
                 if p.grad is None:
                     continue
                 state = self.state[p]  # Get state associated with p.
-                t = state.get(
-                    "t", 0
-                )  # Get iteration number from the state, or initial value.
+                t = state.get("t", 0)  # Get iteration number from the state, or initial value.
                 grad = p.grad.data  # Get the gradient of loss with respect to p.
                 p.data -= lr / math.sqrt(t + 1) * grad  # Update weight tensor in-place.
                 state["t"] = t + 1  # Increment iteration number.
@@ -65,7 +63,7 @@ class AdamW(torch.optim.Optimizer):
         }
         super().__init__(params, defaults)
 
-    def step(self, closure: Optional[Callable] = None):
+    def step(self, closure: Callable | None = None):
         loss = None if closure is None else closure()
         for group in self.param_groups:
             lr = group["lr"]
@@ -77,9 +75,7 @@ class AdamW(torch.optim.Optimizer):
                 if p.grad is None:
                     continue
                 state = self.state[p]  # Get state associated with p.
-                t = state.get(
-                    "t", 1
-                )  # Get iteration number from the state, or initial value.
+                t = state.get("t", 1)  # Get iteration number from the state, or initial value.
                 m = state.get("m", torch.zeros_like(p))  # 一阶动量
                 v = state.get("v", torch.zeros_like(p))  # 二阶动量
                 grad = p.grad.data  # Get the gradient of loss with respect to p.

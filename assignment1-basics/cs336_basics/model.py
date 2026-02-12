@@ -91,7 +91,11 @@ class FeedForward(nn.Module):
         return int(round(d_model * (8 / 3) / 64) * 64)
 
     def __init__(
-        self, d_model: int, d_ff: int = None, device: torch.device | None = None, dtype: torch.dtype | None = None
+        self,
+        d_model: int,
+        d_ff: int | None = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
     ):
         """
         Args:
@@ -115,6 +119,9 @@ class FeedForward(nn.Module):
 
 
 class RotaryPositionalEmbedding(nn.Module):
+    cos_cached: torch.Tensor
+    sin_cached: torch.Tensor
+
     def __init__(self, theta: float, d_k: int, max_seq_len: int, device: torch.device | None = None):
         """
         Args:
@@ -167,7 +174,7 @@ def softmax(x: torch.Tensor, dim: int):
     return exp_x / exp_sum
 
 
-def scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor = None):
+def scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None):
     """
         Args:
             q (batch_size, ..., seq_len, d_k)
@@ -192,8 +199,8 @@ class MultiHeadSelfAttention(nn.Module):
         self,
         d_model: int,
         num_heads: int,
-        rope_max_seq_len: int = None,
-        rope_theta: int = None,
+        rope_max_seq_len: int | None = None,
+        rope_theta: int | None = None,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
@@ -232,7 +239,7 @@ class MultiHeadSelfAttention(nn.Module):
         else:
             self.rope = None
 
-    def forward(self, x: torch.Tensor, token_positions: torch.Tensor = None):
+    def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None):
         """
         Args:
             x should be (batch_size, seq_len, d_model) in shape
