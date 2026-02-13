@@ -46,21 +46,27 @@ def train(
         device = "mps"
     else:
         device = "cpu"
+    print(f"target device: {device}")
 
     # initialize model, optimizer and tokenizer
     model = TransformerLM().to(device)
     optimizer = AdamW(model.parameters(), lr=max_learning_rate)
     tokenizer = Tokenizer.from_files(vocab_filepath, merges_filepath, special_tokens)
+    print("model initialized")
 
     # (optional) load checkpoint
     if ckpt_path:
         print(f"Loading checkpoint at {ckpt_path}")
         load_checkpoint(ckpt_path, model, optimizer)
+        print("checkpoint loaded")
 
     # tokenize dataset
     with open(dataset_path, encoding="utf-8") as f:
         dataset_str = f.read()
-    dataset = np.array(tokenizer.encode(dataset_str))
+    print("encoding dataset")
+    encoded_dataset = tokenizer.encode(dataset_str)
+    dataset = np.array(encoded_dataset)
+    print("dataset created")
 
     # main training loop
     for it in tqdm(range(max_iter)):
@@ -91,6 +97,7 @@ def train(
         if (it + 1) % save_interval == 0:
             ckpt_path_now = path.join(output_dir, f"ckpt_{it + 1}.pt")
             save_checkpoint(model, optimizer, it + 1, ckpt_path_now)
+            print(f"checkpoint saved to {ckpt_path_now}")
 
     final_ckpt_path = path.join(output_dir, "ckpt_final.pt")
     save_checkpoint(model, optimizer, max_iter, final_ckpt_path)

@@ -1,12 +1,18 @@
 import json
+import os
 from os import path
 
 from cs336_basics.bpe import train_bpe
 
 data_root = "./data"
-dataset_path = path.join(data_root, "TinyStories-valid.txt")
-vocab_path = path.join(data_root, "vocab.json")
-merges_path = path.join(data_root, "merges.txt")
+dataset_root = "dataset"
+tokenizer_root = "tokenizer"
+tokenizer_path = path.join(data_root, tokenizer_root)
+os.makedirs(tokenizer_path, exist_ok=True)
+
+dataset_path = path.join(data_root, dataset_root, "TinyStories-valid.txt")
+vocab_path = path.join(tokenizer_path, "vocab.json")
+merges_path = path.join(tokenizer_path, "merges.txt")
 
 
 def main():
