@@ -1,5 +1,4 @@
 import os
-from collections import Counter
 from multiprocessing import Pool
 from typing import BinaryIO
 
@@ -14,6 +13,8 @@ def find_chunk_boundaries(file: BinaryIO, desired_num_chunks: int, split_special
     """
     Chunk the file into parts that can be counted independently.
     May return fewer chunks if the boundaries end up overlapping.
+
+    This function is copied from pretokenization_example.py and the file is deleted now.
     """
     assert isinstance(split_special_token, bytes), "Must represent special token as a bytestring"
 
@@ -82,8 +83,8 @@ def split_special_tokens(text: str, special_tokens: list[str]):
     return text_chunks
 
 
-def pre_tokenize_for_chunk(args: tuple[str | os.PathLike, list[str], int, int]) -> Counter:
-    pre_token_counts = Counter()
+def pre_tokenize_for_chunk(args: tuple[str | os.PathLike, list[str], int, int]) -> dict[tuple[bytes, ...], int]:
+    pre_token_counts: dict[tuple[bytes, ...], int] = {}
 
     input_path, special_tokens, start, end = args
     with open(input_path, mode="rb") as f:
@@ -97,15 +98,15 @@ def pre_tokenize_for_chunk(args: tuple[str | os.PathLike, list[str], int, int]) 
             for match in PAT.finditer(splitted_chunk):
                 pre_token = match.group(0)
                 byte_tokens = tuple(bytes([b]) for b in pre_token.encode("utf-8"))
-                pre_token_counts[byte_tokens] += 1
+                pre_token_counts[byte_tokens] = pre_token_counts.get(byte_tokens, 0) + 1
     return pre_token_counts
 
 
 def pre_tokenize(
     input_path: str | os.PathLike,
     special_tokens: list[str],
-) -> Counter:
-    pre_token_counts = Counter()
+) -> dict[tuple[bytes, ...], int]:
+    pre_token_counts: dict[tuple[bytes, ...], int] = {}
 
     # 一次性读取文件并确定边界
     with open(input_path, mode="rb") as f:
@@ -120,48 +121,80 @@ def pre_tokenize(
         for start, end in zip(boundaries[:-1], boundaries[1:]):
             args.append((input_path, special_tokens, start, end))
 
-    with Pool(os.cpu_count()) as pool:
+    with Pool(cpu_count) as pool:
         for chunk_result in pool.imap_unordered(pre_tokenize_for_chunk, args):
-            pre_token_counts.update(chunk_result)
+            for token, count in chunk_result.items():
+                pre_token_counts[token] = pre_token_counts.get(token, 0) + count
 
     return pre_token_counts
 
 
-def get_pair_counts(words: Counter) -> Counter:
-    pair_counter = Counter()
+def get_pair_counts(words: dict[tuple[bytes, ...], int]) -> dict[tuple[bytes, bytes], int]:
+    """
+    统计所有相邻 token 对的频率
+    """
+    pair_counter: dict[tuple[bytes, bytes], int] = {}
     for word, frequency in words.items():
         word_len = len(word)
         # 遍历每个词中相邻的 token 对
         for i in range(word_len - 1):
             pair = (word[i], word[i + 1])
             # 累加该对的出现次数
-            pair_counter[pair] += frequency
+            pair_counter[pair] = pair_counter.get(pair, 0) + frequency  # {(b'h', b'e'): 5, (b'l', b'l'): 10, ...}
     return pair_counter
 
 
-def merge_pair(words: Counter, pair_to_merge: tuple[bytes, bytes]) -> Counter:
-    new_words = Counter()
-    for word_tuple, frequency in words.items():
-        # 将 tuple 转换为列表以便修改
-        current_word_list = list(word_tuple)
-        # 构建新的 word 序列
-        merged_word_list = []
+def merge_pair(
+    words: dict[tuple[bytes, ...], int], target_pair: tuple[bytes, bytes], pair_counts: dict[tuple[bytes, bytes], int]
+) -> dict[tuple[bytes, ...], int]:
+    new_words: dict[tuple[bytes, ...], int] = {}
+    new_token = target_pair[0] + target_pair[1]
+
+    for word, freq in words.items():
+        if len(word) < 2:
+            new_words[word] = freq
+            continue
+
+        # Check if the target_pair is in the word
+        if target_pair not in zip(word, word[1:]):
+            new_words[word] = freq
+            continue
+
+        # 1. Deduct old pair counts
+        for i in range(len(word) - 1):
+            pair = (word[i], word[i + 1])
+            pair_counts[pair] -= freq
+            if pair_counts[pair] <= 0:
+                pair_counts.pop(pair, None)
+
+        # 2. Form new word
+        new_word_list = []
         i = 0
-        while i < len(current_word_list):
-            if (
-                i + 1 < len(current_word_list)
-                and current_word_list[i] == pair_to_merge[0]
-                and current_word_list[i + 1] == pair_to_merge[1]
-            ):
-                new_token = pair_to_merge[0] + pair_to_merge[1]
-                merged_word_list.append(new_token)
+        while i < len(word):
+            if i < len(word) - 1 and (word[i], word[i + 1]) == target_pair:
+                new_word_list.append(new_token)
                 i += 2
             else:
-                merged_word_list.append(current_word_list[i])
+                new_word_list.append(word[i])
                 i += 1
+        new_word = tuple(new_word_list)
+        new_words[new_word] = new_words.get(new_word, 0) + freq
 
-        new_words[tuple(merged_word_list)] += frequency
+        # 3. Add new pair counts
+        for i in range(len(new_word) - 1):
+            pair = (new_word[i], new_word[i + 1])
+            pair_counts[pair] = pair_counts.get(pair, 0) + freq
+
     return new_words
+
+
+def get_best_pair(pair_counts: dict[tuple[bytes, bytes], int]) -> tuple[bytes, bytes]:
+    """
+    获取最高频的 token pair
+    - 如果最高频的只有一个，则返回
+    - 如果有多个，则按照字典顺序排序
+    """
+    return max(pair_counts.keys(), key=lambda p: (pair_counts[p], p[0], p[1]))
 
 
 def train_bpe(
@@ -180,22 +213,13 @@ def train_bpe(
     # 使用集合记录已有词汇，避免重复检查
     vocab_set = set(vocab)
     merges: list[tuple[bytes, bytes]] = []
-
-    # 定期打印进度
-    progress_interval = max(1, (vocab_size - len(vocab)) // 20)
+    # 获取每个词中相邻的 token 对出现的次数
+    # 仅在初始化时全量统计一次
+    pair_counts = get_pair_counts(words)
 
     while len(vocab) < vocab_size:
-        # 获取每个词中相邻的 token 对出现的次数
-        pair_counts = get_pair_counts(words)
-
-        # 空 Counter 将被视为 False，这表示语料库中所有的词都无法再分割出 token 了
-        if not pair_counts:
-            break
-
-        best_pair = pair_counts.most_common(1)[0][0]
-        # 如果这个 pair 已经在词表中，跳过
-        if best_pair in vocab_set:
-            continue
+        # 获取需要合并的下一个 pair
+        best_pair = get_best_pair(pair_counts)
 
         # 合并产生新 token
         new_token = best_pair[0] + best_pair[1]
@@ -207,10 +231,11 @@ def train_bpe(
         # 将本次的 pair 加入合并记录
         merges.append(best_pair)
 
-        words = merge_pair(words, best_pair)
+        words = merge_pair(words, best_pair, pair_counts)
 
-        if len(vocab) % progress_interval == 0:
-            print(f"Vocab size: {len(vocab)}/{vocab_size}, Merging: {best_pair}")
+        # 空 dict 将被视为 False，这表示语料库中所有的词都无法再分割出 token 了
+        if not pair_counts:
+            break
 
     print(f"Final vocab size: {len(vocab)}")
     return {i: v for i, v in enumerate(vocab)}, merges
