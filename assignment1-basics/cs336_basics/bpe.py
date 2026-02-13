@@ -6,7 +6,7 @@ import regex as re
 
 # 编译正则表达式以提高效率
 # GPT-2 预分词正则表达式
-PAT = re.compile(r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
+PAT: re.Pattern[str] = re.compile(r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
 
 
 def find_chunk_boundaries(file: BinaryIO, desired_num_chunks: int, split_special_token: bytes) -> list[int]:
@@ -54,7 +54,7 @@ def find_chunk_boundaries(file: BinaryIO, desired_num_chunks: int, split_special
     return sorted(set(chunk_boundaries))
 
 
-def split_special_tokens(text: str, special_tokens: list[str]):
+def split_special_tokens(text: str, special_tokens: list[str]) -> list[str]:
     """
     根据 special tokens 分割文本，并返回纯文本 chunk 列表。
     这些 chunk 可以安全地进行后续的预分词。
