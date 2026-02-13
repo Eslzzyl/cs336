@@ -26,6 +26,17 @@ def train(
     validation_interval: int = 1000,
     batch_size: int = 8,
     context_length: int = 16,
+    d_model: int = 64,
+    num_heads: int = 4,
+    d_ff: int = 128,
+    vocab_size: int = 10000,
+    num_layers: int = 3,
+    rope_theta: float = 10000.0,
+    max_learning_rate: float = 1e-3,
+    min_learning_rate: float = 1e-5,
+    warmup_iters: int = 100,
+    cosine_cycle_iters: int = 10000,
+    max_grad_norm: float = 1.0,
     ckpt_path: Path | str | None = None,
 ):
     # decide target device
@@ -37,8 +48,8 @@ def train(
         device = "cpu"
 
     # initialize model, optimizer and tokenizer
-    model = TransformerLM()
-    optimizer = AdamW(model.parameters())
+    model = TransformerLM().to(device)
+    optimizer = AdamW(model.parameters(), lr=max_learning_rate)
     tokenizer = Tokenizer.from_files(vocab_filepath, merges_filepath, special_tokens)
 
     # (optional) load checkpoint
@@ -52,7 +63,9 @@ def train(
     dataset = np.array(tokenizer.encode(dataset_str))
 
     # main training loop
-    for _ in tqdm(range(max_iter)):
+    for it in tqdm(range(max_iter)):
+        optimizer.zero_grad()
+
         # get data
         input_tensor, target_tensor = get_batch(dataset, batch_size, context_length, device)
 
@@ -64,8 +77,20 @@ def train(
         # backward pass
         loss.backward()
 
+        # gradient clipping
+        gradient_clipping(model.parameters(), max_grad_norm)
+
+        # update learning rate
+        lr = lr_cosine_schedule(it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
+        for group in optimizer.param_groups:
+            group["lr"] = lr
+
         # optimize
         optimizer.step()
+
+        if (it + 1) % save_interval == 0:
+            ckpt_path_now = path.join(output_dir, f"ckpt_{it + 1}.pt")
+            save_checkpoint(model, optimizer, it + 1, ckpt_path_now)
 
     final_ckpt_path = path.join(output_dir, "ckpt_final.pt")
     save_checkpoint(model, optimizer, max_iter, final_ckpt_path)
