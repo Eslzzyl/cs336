@@ -3,6 +3,7 @@ from multiprocessing import Pool
 from typing import BinaryIO
 
 import regex as re
+from tqdm import tqdm, trange
 
 # 编译正则表达式以提高效率
 # GPT-2 预分词正则表达式
@@ -122,7 +123,9 @@ def pre_tokenize(
             args.append((input_path, special_tokens, start, end))
 
     with Pool(cpu_count) as pool:
-        for chunk_result in pool.imap_unordered(pre_tokenize_for_chunk, args):
+        for chunk_result in tqdm(
+            pool.imap_unordered(pre_tokenize_for_chunk, args), total=len(args), desc="pre-tokenize chunks", unit="chunk"
+        ):
             for token, count in chunk_result.items():
                 pre_token_counts[token] = pre_token_counts.get(token, 0) + count
 
@@ -210,14 +213,21 @@ def train_bpe(
     # 预分词
     words = pre_tokenize(input_path, special_tokens)
 
-    # 使用集合记录已有词汇，避免重复检查
-    vocab_set = set(vocab)
     merges: list[tuple[bytes, bytes]] = []
     # 获取每个词中相邻的 token 对出现的次数
     # 仅在初始化时全量统计一次
     pair_counts = get_pair_counts(words)
 
-    while len(vocab) < vocab_size:
+    initial_vocab_len = len(vocab)
+    # 计划新增 token 数
+    planned_new = max(0, vocab_size - initial_vocab_len)
+
+    # 使用 trange 显示合并进度；如果中途 pair_counts 为空会提前中断
+    for _ in trange(planned_new, desc="BPE merges", unit="merge"):
+        # 空 dict 将被视为 False，这表示语料库中所有的词都无法再分割出 token 了
+        if not pair_counts:
+            break
+
         # 获取需要合并的下一个 pair
         best_pair = get_best_pair(pair_counts)
 
@@ -226,16 +236,11 @@ def train_bpe(
 
         # 将新 token 加入词表和集合
         vocab.append(new_token)
-        vocab_set.add(new_token)
 
         # 将本次的 pair 加入合并记录
         merges.append(best_pair)
 
         words = merge_pair(words, best_pair, pair_counts)
-
-        # 空 dict 将被视为 False，这表示语料库中所有的词都无法再分割出 token 了
-        if not pair_counts:
-            break
 
     print(f"Final vocab size: {len(vocab)}")
     return {i: v for i, v in enumerate(vocab)}, merges

@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import json
 from collections.abc import Iterable, Iterator
+from typing import cast
 
 import regex as re
 
-from cs336_basics.bpe import PAT, split_special_tokens
+from cs336_basics.bpe import PAT
 
 
 def pre_tokenize(text: str, special_tokens: list[str] | None = None) -> list[list[bytes]]:
@@ -12,7 +15,7 @@ def pre_tokenize(text: str, special_tokens: list[str] | None = None) -> list[lis
     """
     if special_tokens:
         # 为了让正则优先匹配更长的 special token（避免被其子串先匹配），按长度降序排序
-        sorted_specials = sorted(special_tokens, key=len, reverse=True)
+        sorted_specials = cast(list[str], sorted(special_tokens, key=len, reverse=True))
         escaped = [re.escape(s) for s in sorted_specials]
         pattern = "(" + "|".join(escaped) + ")"
         parts = re.split(pattern, text)
@@ -50,7 +53,8 @@ class Tokenizer:
         self.merges = merges
         self.special_tokens = special_tokens
 
-    def from_files(self, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None):
+    @staticmethod
+    def from_files(vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None) -> Tokenizer:
         """
         Args:
             vocab_filepath: str
@@ -59,15 +63,15 @@ class Tokenizer:
         """
         with open(vocab_filepath, encoding="utf-8") as f:
             vocab_data = json.load(f)
-        vocab = {v: k.encode("utf-8") for k, v in vocab_data.items()}
+        vocab = {v: k.encode("latin-1") for k, v in vocab_data.items()}
 
         merges = []
         with open(merges_filepath, encoding="utf-8") as f:
             for merge in f:
                 parts = merge.strip().split()
                 if len(parts) == 2:
-                    merges.append((parts[0].encode("utf-8"), parts[1].encode("utf-8")))
-        self.__init__(vocab, merges, special_tokens)
+                    merges.append((parts[0].encode("latin-1"), parts[1].encode("utf-8")))
+        return Tokenizer(vocab, merges, special_tokens)
 
     def encode(self, text: str) -> list[int]:
         # Step 1: pre-tokenize

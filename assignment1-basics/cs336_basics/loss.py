@@ -1,7 +1,7 @@
 import torch
 
 
-def cross_entropy(logits: torch.Tensor, targets: torch.Tensor):
+def cross_entropy(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     batch_size, vocab_size = logits.shape
     if targets.shape != (batch_size,):
         raise ValueError(f"Targets shape {targets.shape} does not match logits shape {logits.shape}")

@@ -325,7 +325,7 @@ class TransformerBlock(nn.Module):
         self.ln2 = RMSNorm(d_model=d_model, device=device, dtype=dtype)
         self.ffn = FeedForward(d_model=d_model, d_ff=d_ff, device=device, dtype=dtype)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # 构造 token_positions：[0, 1, 2, ..., seq_len-1]
         _, seq_len, _ = x.shape  # 输入形状是 (batch_size, seq_len, d_model)
         token_positions = torch.arange(seq_len, device=x.device, dtype=torch.long)
@@ -339,13 +339,13 @@ class TransformerBlock(nn.Module):
 class TransformerLM(nn.Module):
     def __init__(
         self,
-        d_model: int,
-        num_heads: int,
-        d_ff: int,
-        vocab_size: int,
-        context_length: int,
-        num_layers: int,
-        rope_theta: float,
+        d_model: int = 64,
+        num_heads: int = 4,
+        d_ff: int = 128,
+        vocab_size: int = 10000,
+        context_length: int = 16,
+        num_layers: int = 3,
+        rope_theta: float = 10000.0,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):

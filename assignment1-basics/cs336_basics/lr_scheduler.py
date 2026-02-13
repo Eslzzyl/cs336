@@ -7,7 +7,7 @@ def lr_cosine_schedule(
     min_learning_rate: float,
     warmup_iters: int,
     cosine_cycle_iters: int,
-):
+) -> float:
     if it < warmup_iters:  # warm-up
         return it / warmup_iters * max_learning_rate
     elif it <= cosine_cycle_iters:  # cosine annealing
