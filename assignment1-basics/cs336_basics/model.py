@@ -200,7 +200,7 @@ class MultiHeadSelfAttention(nn.Module):
         d_model: int,
         num_heads: int,
         rope_max_seq_len: int | None = None,
-        rope_theta: int | None = None,
+        rope_theta: float | None = None,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
@@ -209,7 +209,7 @@ class MultiHeadSelfAttention(nn.Module):
             d_model (int) Dimensionality of the Transformer block inputs.
             num_heads (int) Number of heads to use in multi-head self-attention.
             rope_max_seq_len (int = None) max_seq_len for RoPE. If None, will not use RoPE
-            rope_theta (int = None) theta for RoPE. If None, will not use RoPE
+            rope_theta (float = None) theta for RoPE. If None, will not use RoPE
             device (torch.device | None = None) Device to store the parameters on
             dtype (torch.dtype | None = None): Data type of the parameters
         """
@@ -296,7 +296,7 @@ class TransformerBlock(nn.Module):
         num_heads: int,
         d_ff: int,
         rope_max_seq_len: int,
-        rope_theta: int,
+        rope_theta: float,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
@@ -306,7 +306,7 @@ class TransformerBlock(nn.Module):
             num_heads (int) Number of heads to use in multi-head self-attention
             d_ff (int) Dimensionality of the position-wise feed-forward inner layer
             rope_max_seq_len (int) max_seq_len for RoPE
-            rope_theta (int) theta for RoPE
+            rope_theta (float) theta for RoPE
             device (torch.device | None = None) Device to store the parameters on
             dtype (torch.dtype | None = None): Data type of the parameters
         """
@@ -345,7 +345,7 @@ class TransformerLM(nn.Module):
         vocab_size: int,
         context_length: int,
         num_layers: int,
-        rope_theta: int,
+        rope_theta: float,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
@@ -357,7 +357,7 @@ class TransformerLM(nn.Module):
             vocab_size (int) The size of the vocabulary
             context_length (int) The maximum context length
             num_layers (int) The number of Transformer blocks to use
-            rope_theta (int) theta for RoPE
+            rope_theta (float) theta for RoPE
             device (torch.device | None = None) Device to store the parameters on
             dtype (torch.dtype | None = None): Data type of the parameters
         """
