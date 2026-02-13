@@ -1,5 +1,5 @@
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 
 from cs336_basics.bpe import PAT, split_special_tokens
 
