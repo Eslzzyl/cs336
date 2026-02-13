@@ -1,20 +1,38 @@
 import json
 from collections.abc import Iterable, Iterator
 
+import regex as re
+
 from cs336_basics.bpe import PAT, split_special_tokens
 
 
 def pre_tokenize(text: str, special_tokens: list[str] | None = None) -> list[list[bytes]]:
+    """
+    执行预分词过程。注意这里和 bpe.py 中不同，不能排除 special_tokens
+    """
     if special_tokens:
-        splitted_texts = split_special_tokens(text, special_tokens)
+        # 为了让正则优先匹配更长的 special token（避免被其子串先匹配），按长度降序排序
+        sorted_specials = sorted(special_tokens, key=len, reverse=True)
+        escaped = [re.escape(s) for s in sorted_specials]
+        pattern = "(" + "|".join(escaped) + ")"
+        parts = re.split(pattern, text)
+        special_set = set(special_tokens)
     else:
-        splitted_texts = text
-    pre_tokens = []
-    for splitted_text in splitted_texts:
-        for match in PAT.finditer(splitted_text):
-            pre_token = match.group(0)
-            byte_tokens = [bytes([b]) for b in pre_token.encode("utf-8")]
-            pre_tokens.append(byte_tokens)
+        parts = [text]
+        special_set = set()
+
+    pre_tokens: list[list[bytes]] = []
+    for part in parts:
+        if not part:
+            continue
+        # 如果 part 是 exact match 的 special token，则把整个 token 当成一个 bytes 单元（不拆字节）
+        if part in special_set:
+            pre_tokens.append([part.encode("utf-8")])
+        else:
+            for match in PAT.finditer(part):
+                pre_token = match.group(0)
+                byte_tokens = [bytes([b]) for b in pre_token.encode("utf-8")]
+                pre_tokens.append(byte_tokens)
     return pre_tokens
 
 
