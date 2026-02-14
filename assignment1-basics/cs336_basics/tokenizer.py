@@ -53,6 +53,13 @@ class Tokenizer:
         self.merges = merges
         self.special_tokens = special_tokens
 
+        # Build reverse vocab mapping bytes -> id for fast lookup
+        self._reverse_vocab: dict[bytes, int] = {v: k for k, v in self.vocab.items()}
+
+        self._merge_ranks: dict[tuple[bytes, bytes], int] = {}
+        for idx, pair in enumerate(self.merges):
+            self._merge_ranks[pair] = idx
+
     @staticmethod
     def from_files(vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None) -> Tokenizer:
         """
@@ -70,48 +77,54 @@ class Tokenizer:
             for merge in f:
                 parts = merge.strip().split()
                 if len(parts) == 2:
-                    merges.append((parts[0].encode("latin-1"), parts[1].encode("utf-8")))
+                    merges.append((parts[0].encode("latin-1"), parts[1].encode("latin-1")))
         return Tokenizer(vocab, merges, special_tokens)
 
     def encode(self, text: str) -> list[int]:
         # Step 1: pre-tokenize
         pre_tokens = pre_tokenize(text, self.special_tokens)
 
-        # Step 2: apply merges
-        # Build reverse vocab mapping bytes -> id for fast lookup
-        reverse_vocab_dict: dict[bytes, int] = {v: k for k, v in self.vocab.items()}
         ids: list[int] = []
         for curr_token in pre_tokens:
-            # 重复扫描 merges
+            # curr_token: list[bytes], 每个 bytes 是单个字节字符（b'a' 等）
+            # 使用 merges rank 来进行贪心合并：每次只在当前 token 的相邻 pairs 中
+            # 选择优先级最高（rank 最小）的 pair 合并直到没有可合并对为止。
+
+            if len(curr_token) == 0:
+                continue
+
+            # 转为可变列表
+            token_list = list(curr_token)
+
             while True:
-                merged_this_round = False
-                for a, b in self.merges:
-                    idx = -1
-                    for i in range(len(curr_token) - 1):
-                        if curr_token[i] == a and curr_token[i + 1] == b:
-                            idx = i
-                            break
-                    if idx != -1:
-                        # 说明找到了匹配的 merge，执行
-                        new_token = curr_token[idx] + curr_token[idx + 1]
-                        curr_token = curr_token[:idx] + [new_token] + curr_token[idx + 2 :]
-                        merged_this_round = True
-                        # 结束并重新从头开始扫描 merges
-                        break
-                # 如果未能找到匹配的 merge 规则，则说明这个 token 已经合并完成了
-                if not merged_this_round:
+                # 生成所有相邻对并找出在 merge_rules 中优先级最小的那个
+                best_idx = -1
+                best_rank = None
+                # pairs_count = len(token_list) - 1
+                for i in range(len(token_list) - 1):
+                    pair = (token_list[i], token_list[i + 1])
+                    rank = self._merge_ranks.get(pair)
+                    if rank is not None:
+                        if best_rank is None or rank < best_rank:
+                            best_rank = rank
+                            best_idx = i
+                if best_idx == -1:
                     break
-            for token in curr_token:
-                if token in reverse_vocab_dict:
-                    ids.append(reverse_vocab_dict[token])
+                # 合并 best_idx 和 best_idx+1
+                new_token = token_list[best_idx] + token_list[best_idx + 1]
+                token_list[best_idx : best_idx + 2] = [new_token]
+
+            # 将 token_list 转换为 ids（使用已缓存的 reverse vocab）
+            for token in token_list:
+                if token in self._reverse_vocab:
+                    ids.append(self._reverse_vocab[token])
                 else:
-                    # 词表中没有找到对应的 token
-                    # 理论上这不应该发生，只要 vocab 和 merges 文件是一致的。
-                    # 但是稳妥起见设置一个 fallback 规则
+                    # fallback：把 token 拆回单字节
+                    # 理论上这不应该发生，只要 vocab 和 merges 是一致的
                     for b in token:
                         single = bytes([b])
-                        if single in reverse_vocab_dict:
-                            ids.append(reverse_vocab_dict[single])
+                        if single in self._reverse_vocab:
+                            ids.append(self._reverse_vocab[single])
                         else:
                             raise KeyError(f"Byte token {single!r} not found in vocab")
         return ids
