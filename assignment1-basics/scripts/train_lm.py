@@ -18,7 +18,16 @@ dataset_path = path.join(data_root, dataset_root, "TinyStories-valid.txt")
 
 
 def main():
-    train(dataset_path=dataset_path, output_dir=lm_root, vocab_filepath=vocab_path, merges_filepath=merges_path)
+    train(
+        dataset_path=dataset_path,
+        output_dir=lm_path,
+        vocab_filepath=vocab_path,
+        merges_filepath=merges_path,
+        special_tokens=["<|endoftext|>"],
+        batch_size=64,
+        max_iter=64000,
+        save_interval=200,
+    )
 
 
 if __name__ == "__main__":

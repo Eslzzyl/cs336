@@ -76,8 +76,11 @@ def train(
     dataset = np.asarray(dataset_memmap)
     print("dataset created")
 
+    running_loss = 0.0
+
     # main training loop
-    for it in tqdm(range(max_iter)):
+    pbar = tqdm(range(max_iter // batch_size), desc="Training")
+    for it in pbar:
         optimizer.zero_grad()
 
         # get data
@@ -105,6 +108,10 @@ def train(
 
         # optimize
         optimizer.step()
+
+        # Update progress bar with current loss and learning rate
+        running_loss = 0.9 * running_loss + 0.1 * loss.item()
+        pbar.set_postfix(loss=f"{running_loss:.4f}", lr=f"{lr:.6f}")
 
         if (it + 1) % save_interval == 0:
             ckpt_path_now = path.join(output_dir, f"ckpt_{it + 1}.pt")
