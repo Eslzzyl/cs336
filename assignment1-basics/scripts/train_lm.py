@@ -14,7 +14,7 @@ tokenizer_path = path.join(data_root, tokenizer_root)
 vocab_path = path.join(tokenizer_path, "vocab.json")
 merges_path = path.join(tokenizer_path, "merges.txt")
 
-dataset_path = path.join(data_root, dataset_root, "TinyStories-valid.txt")
+dataset_path = path.join(data_root, dataset_root, "TinyStories-train.txt")
 
 
 def main():
@@ -24,9 +24,9 @@ def main():
         vocab_filepath=vocab_path,
         merges_filepath=merges_path,
         special_tokens=["<|endoftext|>"],
-        batch_size=64,
-        max_iter=64000,
-        save_interval=200,
+        batch_size=128,
+        max_iter=1280000,
+        save_interval=2000,
     )
 
 

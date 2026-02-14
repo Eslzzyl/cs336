@@ -10,7 +10,7 @@ tokenizer_root = "tokenizer"
 tokenizer_path = path.join(data_root, tokenizer_root)
 os.makedirs(tokenizer_path, exist_ok=True)
 
-dataset_path = path.join(data_root, dataset_root, "TinyStories-valid.txt")
+dataset_path = path.join(data_root, dataset_root, "TinyStories-train.txt")
 vocab_path = path.join(tokenizer_path, "vocab.json")
 merges_path = path.join(tokenizer_path, "merges.txt")
 
