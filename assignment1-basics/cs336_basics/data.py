@@ -11,8 +11,8 @@ def get_batch(
     for _ in range(batch_size):
         max_start_index = len(dataset) - context_length
         index = np.random.randint(0, max_start_index)
-        input_seq = torch.tensor(dataset[index : index + context_length], device=device)
-        target_seq = torch.tensor(dataset[index + 1 : index + context_length + 1], device=device)
+        input_seq = torch.tensor(dataset[index : index + context_length], dtype=torch.long, device=device)
+        target_seq = torch.tensor(dataset[index + 1 : index + context_length + 1], dtype=torch.long, device=device)
         input_batch_list.append(input_seq)
         target_batch_list.append(target_seq)
     input_batch = torch.vstack(input_batch_list)

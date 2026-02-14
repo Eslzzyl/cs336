@@ -1,12 +1,15 @@
+import os
 from os import path
 from pathlib import Path
 
 import numpy as np
 import torch
+from einx import rearrange
 from tqdm import tqdm
 
 from cs336_basics.checkpoint import load_checkpoint, save_checkpoint
 from cs336_basics.data import get_batch
+from cs336_basics.dataset_cache import build_or_load_encoded_dataset_memmap
 from cs336_basics.gradient import gradient_clipping
 from cs336_basics.loss import cross_entropy
 from cs336_basics.lr_scheduler import lr_cosine_schedule
@@ -48,6 +51,8 @@ def train(
         device = "cpu"
     print(f"target device: {device}")
 
+    os.makedirs(output_dir, exist_ok=True)
+
     # initialize model, optimizer and tokenizer
     model = TransformerLM().to(device)
     optimizer = AdamW(model.parameters(), lr=max_learning_rate)
@@ -60,12 +65,15 @@ def train(
         load_checkpoint(ckpt_path, model, optimizer)
         print("checkpoint loaded")
 
-    # tokenize dataset
-    with open(dataset_path, encoding="utf-8") as f:
-        dataset_str = f.read()
-    print("encoding dataset")
-    encoded_dataset = tokenizer.encode(dataset_str)
-    dataset = np.array(encoded_dataset)
+    # tokenize dataset (use cached memmap if available)
+    dataset_root = Path(dataset_path).parent
+    cache_filename = path.splitext(path.basename(dataset_path))[0] + ".npy"
+    cache_path = path.join(dataset_root, cache_filename)
+
+    # using np.int16 since we are using vocab size = 10000, less than 65536
+    dataset_memmap = build_or_load_encoded_dataset_memmap(dataset_path, tokenizer, cache_path, dtype=np.int16)
+    # convert to plain numpy array view (memmap supports slicing etc.)
+    dataset = np.asarray(dataset_memmap)
     print("dataset created")
 
     # main training loop
@@ -77,6 +85,10 @@ def train(
 
         # forward pass
         logits = model(input_tensor)
+
+        # resize tensors
+        logits = rearrange("batch_size seq_len vocab_size -> (batch_size seq_len) vocab_size", logits)
+        target_tensor = rearrange("batch_size seq_len -> (batch_size seq_len)", target_tensor)
 
         # calculate loss
         loss = cross_entropy(logits, target_tensor)

@@ -189,6 +189,9 @@ def scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tens
     d_k = q.shape[-1]
     pre_softmax = qk / math.sqrt(d_k)
     if mask is not None:
+        # ensure mask is on the same device as pre_softmax
+        if mask.device != pre_softmax.device:
+            mask = mask.to(pre_softmax.device)
         pre_softmax.masked_fill_(mask=~mask, value=-torch.inf)
     post_softmax = softmax(pre_softmax, dim=-1)
     return einx.dot("... seq_len_q seq_len_k, ... seq_len_k d_v -> ... seq_len_q d_v", post_softmax, v)
@@ -275,7 +278,7 @@ class MultiHeadSelfAttention(nn.Module):
 
         # scaled_dot_product_attention 对 mask 的要求：True 表示允许注意（不填充），False 表示需要掩盖（填充 -inf）。
         # 对因果掩码而言，这意味着下三角（包括对角线）应该是 True，上三角应该是 False。
-        causal_mask = torch.ones((seq_len, seq_len), dtype=torch.bool).tril(diagonal=0)
+        causal_mask = torch.ones((seq_len, seq_len), dtype=torch.bool, device=x.device).tril(diagonal=0)
         attn_output_per_head = scaled_dot_product_attention(
             q, k, v, mask=causal_mask
         )  # (batch_size, num_heads, seq_len, head_dim)
